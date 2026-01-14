@@ -7,3 +7,9 @@ tgcrypto
 aiohttp-healthcheck
 dnspython
 motor
+aiohttp
+aiohttp-healthcheck
+dnspython
+motor
+pyrogram
+tgcrypto
