@@ -43,11 +43,11 @@ async def get_config():
 @app.on_message(filters.command("start"))
 async def start_handler(client, message):
     buttons = [
-        [InlineKeyboardButton("➕ Add Bot", callback_data="add_bot")],
-        [InlineKeyboardButton("🤖 Manage Bots", callback_data="manage_bots")],
+        [InlineKeyboardButton("➕ Add URL", callback_data="add_bot")],
+        [InlineKeyboardButton("🤖 Manage URLs", callback_data="manage_bots")],
         [InlineKeyboardButton("⚙️ Settings", callback_data="settings")]
     ]
-    await message.reply_text("Welcome! Manage your monitoring bots here:", reply_markup=InlineKeyboardMarkup(buttons))
+    await message.reply_text("Welcome! Manage your monitoring URLs here:", reply_markup=InlineKeyboardMarkup(buttons))
 
 async def check_service_simple(session, url, timeout):
     try:
@@ -76,21 +76,23 @@ async def set_interval_callback(client, callback_query):
 async def manage_bots_callback(client, callback_query):
     bots = await bots_col.find().to_list(length=100)
     if not bots:
-        await callback_query.answer("No bots found!", show_alert=True)
+        await callback_query.answer("No URLs found!", show_alert=True)
         return
     
     config = await get_config()
     timeout = config.get("update_interval", 10)
     
+    text = "**Select a URL to manage:**\n\n"
     buttons = []
     async with aiohttp.ClientSession() as session:
-        for bot in bots:
+        for i, bot in enumerate(bots, 1):
             is_alive = await check_service_simple(session, bot["url"], timeout)
             status_emoji = "🟢" if is_alive else "🔴"
+            text += f"> {i}. {bot['url']} {status_emoji}\n\n"
             buttons.append([InlineKeyboardButton(f"{status_emoji} {bot['name']}", callback_data=f"bot_{bot['_id']}")])
     
     buttons.append([InlineKeyboardButton("🔙 Back", callback_data="back_start")])
-    await callback_query.edit_message_text("Select a bot to manage:", reply_markup=InlineKeyboardMarkup(buttons))
+    await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(buttons))
 
 @app.on_callback_query(filters.regex("^bot_"))
 async def bot_info_callback(client, callback_query):
@@ -99,10 +101,10 @@ async def bot_info_callback(client, callback_query):
     bot = await bots_col.find_one({"_id": ObjectId(bot_id)})
     
     if not bot:
-        await callback_query.answer("Bot not found!")
+        await callback_query.answer("URL not found!")
         return
 
-    text = f"**Bot Name:** `{bot['name']}`\n**URL:** `{bot['url']}`"
+    text = f"**URL Name:** `{bot['name']}`\n**URL:** `{bot['url']}`"
     buttons = [
         [
             InlineKeyboardButton("📝 Name", callback_data=f"edit_name_{bot_id}"),
@@ -117,38 +119,67 @@ async def bot_info_callback(client, callback_query):
 async def add_bot_callback(client, callback_query):
     user_data[callback_query.from_user.id] = {"action": "adding_name"}
     buttons = [[InlineKeyboardButton("🔙 Cancel", callback_data="back_start")]]
-    await callback_query.edit_message_text("Please send the bot name (e.g., @MyBot):", reply_markup=InlineKeyboardMarkup(buttons))
+    await callback_query.edit_message_text("Please send the URL name (e.g., Google):", reply_markup=InlineKeyboardMarkup(buttons))
 
 @app.on_callback_query(filters.regex("^edit_name_"))
 async def edit_name_callback(client, callback_query):
     bot_id = callback_query.data.split("_")[2]
     user_data[callback_query.from_user.id] = {"action": "editing_name", "bot_id": bot_id}
     buttons = [[InlineKeyboardButton("🔙 Cancel", callback_data=f"bot_{bot_id}")]]
-    await callback_query.edit_message_text("Please send the NEW bot name:", reply_markup=InlineKeyboardMarkup(buttons))
+    await callback_query.edit_message_text("Please send the NEW URL name:", reply_markup=InlineKeyboardMarkup(buttons))
 
 @app.on_callback_query(filters.regex("^edit_url_"))
 async def edit_url_callback(client, callback_query):
     bot_id = callback_query.data.split("_")[2]
     user_data[callback_query.from_user.id] = {"action": "editing_url", "bot_id": bot_id}
     buttons = [[InlineKeyboardButton("🔙 Cancel", callback_data=f"bot_{bot_id}")]]
-    await callback_query.edit_message_text("Please send the NEW bot health check URL:", reply_markup=InlineKeyboardMarkup(buttons))
+    await callback_query.edit_message_text("Please send the NEW health check URL:", reply_markup=InlineKeyboardMarkup(buttons))
 
 @app.on_callback_query(filters.regex("^delete_"))
 async def delete_bot_callback(client, callback_query):
     bot_id = callback_query.data.split("_")[1]
     from bson import ObjectId
     await bots_col.delete_one({"_id": ObjectId(bot_id)})
-    await callback_query.answer("Bot deleted!")
+    await callback_query.answer("URL deleted!")
     await manage_bots_callback(client, callback_query)
 
 @app.on_callback_query(filters.regex("^back_start$"))
 async def back_start_callback(client, callback_query):
     buttons = [
-        [InlineKeyboardButton("➕ Add Bot", callback_data="add_bot")],
-        [InlineKeyboardButton("🤖 Manage Bots", callback_data="manage_bots")],
+        [InlineKeyboardButton("➕ Add URL", callback_data="add_bot")],
+        [InlineKeyboardButton("🤖 Manage URLs", callback_data="manage_bots")],
         [InlineKeyboardButton("⚙️ Settings", callback_data="settings")]
     ]
-    await callback_query.edit_message_text("Welcome! Manage your monitoring bots here:", reply_markup=InlineKeyboardMarkup(buttons))
+    await callback_query.edit_message_text("Welcome! Manage your monitoring URLs here:", reply_markup=InlineKeyboardMarkup(buttons))
+
+@app.on_callback_query(filters.regex("^refresh_now$"))
+async def refresh_now_callback(client, callback_query):
+    await callback_query.answer("All URL got checked !!", show_alert=True)
+    asyncio.create_task(run_manual_update())
+
+async def run_manual_update():
+    async with aiohttp.ClientSession() as session:
+        config = await get_config()
+        timeout = config.get("update_interval", 60)
+        bots = await bots_col.find().to_list(length=100)
+        
+        if not bots:
+            text = "> ❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n>\n> No URLs configured.\n>\n> ━━━━━━━━━━━━━━━━━━━\n"
+        else:
+            tasks = [check_service(session, b["name"], b["url"], timeout) for b in bots]
+            results = await asyncio.gather(*tasks)
+            text = "> ❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n>\n"
+            for res in results:
+                quoted_res = "\n".join([f"> {line}" for line in res.split("\n")])
+                text += f"{quoted_res}\n>\n"
+            text += "> ━━━━━━━━━━━━━━━━━━━\n"
+        
+        text += f"\n_Last update: {time.strftime('%H:%M:%S')}_"
+        buttons = [[InlineKeyboardButton("♻️ Refresh", callback_data="refresh_now")]]
+        try:
+            await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, reply_markup=InlineKeyboardMarkup(buttons))
+        except Exception as e:
+            print("Manual update failed:", e)
 
 @app.on_message(filters.private & ~filters.command("start"))
 async def handle_text(client, message):
@@ -168,7 +199,7 @@ async def handle_text(client, message):
         url = message.text
         await bots_col.insert_one({"name": name, "url": url})
         del user_data[user_id]
-        await message.reply(f"Bot `{name}` added successfully!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="back_start")]]))
+        await message.reply(f"URL `{name}` added successfully!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="back_start")]]))
     
     elif action == "editing_name":
         bot_id = user_data[user_id]["bot_id"]
@@ -212,26 +243,25 @@ async def updater():
         while True:
             config = await get_config()
             interval = config.get("update_interval", 60)
-            
-            # Use the same value for timeout as the update interval to sync them
             timeout = interval
             
             bots = await bots_col.find().to_list(length=100)
             if not bots:
-                text = "❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\nNo bots configured.\n\n━━━━━━━━━━━━━━━━━━━\n\n"
+                text = "> ❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n>\n> No URLs configured.\n>\n> ━━━━━━━━━━━━━━━━━━━\n"
             else:
                 tasks = [check_service(session, b["name"], b["url"], timeout) for b in bots]
                 results = await asyncio.gather(*tasks)
                 
-                text = "❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\n"
+                text = "> ❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n>\n"
                 for res in results:
-                    text += f"{res}\n\n"
-                text += "━━━━━━━━━━━━━━━━━━━\n\n"
+                    quoted_res = "\n".join([f"> {line}" for line in res.split("\n")])
+                    text += f"{quoted_res}\n>\n"
+                text += "> ━━━━━━━━━━━━━━━━━━━\n"
             
-            text += f"_Last update: {time.strftime('%H:%M:%S')}_"
-            
+            text += f"\n_Last update: {time.strftime('%H:%M:%S')}_"
+            buttons = [[InlineKeyboardButton("♻️ Refresh", callback_data="refresh_now")]]
             try:
-                await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text)
+                await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, reply_markup=InlineKeyboardMarkup(buttons))
             except Exception as e:
                 print("Update failed:", e)
             
