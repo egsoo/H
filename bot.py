@@ -49,6 +49,13 @@ async def start_handler(client, message):
     ]
     await message.reply_text("Welcome! Manage your monitoring bots here:", reply_markup=InlineKeyboardMarkup(buttons))
 
+async def check_service_simple(session, url, timeout):
+    try:
+        async with session.get(url, timeout=timeout) as r:
+            return r.status == 200
+    except:
+        return False
+
 @app.on_callback_query(filters.regex("^settings$"))
 async def settings_callback(client, callback_query):
     config = await get_config()
@@ -62,7 +69,8 @@ async def settings_callback(client, callback_query):
 @app.on_callback_query(filters.regex("^set_interval$"))
 async def set_interval_callback(client, callback_query):
     user_data[callback_query.from_user.id] = {"action": "setting_interval"}
-    await callback_query.edit_message_text("Please send the new interval in seconds (e.g., 60):")
+    buttons = [[InlineKeyboardButton("🔙 Cancel", callback_data="settings")]]
+    await callback_query.edit_message_text("Please send the new interval in seconds (e.g., 60):", reply_markup=InlineKeyboardMarkup(buttons))
 
 @app.on_callback_query(filters.regex("^manage_bots$"))
 async def manage_bots_callback(client, callback_query):
@@ -71,9 +79,15 @@ async def manage_bots_callback(client, callback_query):
         await callback_query.answer("No bots found!", show_alert=True)
         return
     
+    config = await get_config()
+    timeout = config.get("update_interval", 10)
+    
     buttons = []
-    for bot in bots:
-        buttons.append([InlineKeyboardButton(bot["name"], callback_data=f"bot_{bot['_id']}")])
+    async with aiohttp.ClientSession() as session:
+        for bot in bots:
+            is_alive = await check_service_simple(session, bot["url"], timeout)
+            status_emoji = "🟢" if is_alive else "🔴"
+            buttons.append([InlineKeyboardButton(f"{status_emoji} {bot['name']}", callback_data=f"bot_{bot['_id']}")])
     
     buttons.append([InlineKeyboardButton("🔙 Back", callback_data="back_start")])
     await callback_query.edit_message_text("Select a bot to manage:", reply_markup=InlineKeyboardMarkup(buttons))
@@ -102,19 +116,22 @@ async def bot_info_callback(client, callback_query):
 @app.on_callback_query(filters.regex("^add_bot$"))
 async def add_bot_callback(client, callback_query):
     user_data[callback_query.from_user.id] = {"action": "adding_name"}
-    await callback_query.edit_message_text("Please send the bot name (e.g., @MyBot):")
+    buttons = [[InlineKeyboardButton("🔙 Cancel", callback_data="back_start")]]
+    await callback_query.edit_message_text("Please send the bot name (e.g., @MyBot):", reply_markup=InlineKeyboardMarkup(buttons))
 
 @app.on_callback_query(filters.regex("^edit_name_"))
 async def edit_name_callback(client, callback_query):
     bot_id = callback_query.data.split("_")[2]
     user_data[callback_query.from_user.id] = {"action": "editing_name", "bot_id": bot_id}
-    await callback_query.edit_message_text("Please send the NEW bot name:")
+    buttons = [[InlineKeyboardButton("🔙 Cancel", callback_data=f"bot_{bot_id}")]]
+    await callback_query.edit_message_text("Please send the NEW bot name:", reply_markup=InlineKeyboardMarkup(buttons))
 
 @app.on_callback_query(filters.regex("^edit_url_"))
 async def edit_url_callback(client, callback_query):
     bot_id = callback_query.data.split("_")[2]
     user_data[callback_query.from_user.id] = {"action": "editing_url", "bot_id": bot_id}
-    await callback_query.edit_message_text("Please send the NEW bot health check URL:")
+    buttons = [[InlineKeyboardButton("🔙 Cancel", callback_data=f"bot_{bot_id}")]]
+    await callback_query.edit_message_text("Please send the NEW bot health check URL:", reply_markup=InlineKeyboardMarkup(buttons))
 
 @app.on_callback_query(filters.regex("^delete_"))
 async def delete_bot_callback(client, callback_query):
