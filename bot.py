@@ -29,13 +29,15 @@ user_data = {}
 async def get_config():
     config = await config_col.find_one({"_id": "settings"})
     if not config:
-        # Default settings: update message every 60s, timeout 10s
-        config = {"_id": "settings", "update_interval": 60, "timeout": 10}
+        # Default settings: interval 60s
+        config = {"_id": "settings", "update_interval": 60}
         await config_col.insert_one(config)
-    # Ensure timeout exists for older configs
-    if "timeout" not in config:
-        config["timeout"] = 10
-        await config_col.update_one({"_id": "settings"}, {"$set": {"timeout": 10}})
+    
+    # Ensure update_interval exists
+    if "update_interval" not in config:
+        config["update_interval"] = 60
+        await config_col.update_one({"_id": "settings"}, {"$set": {"update_interval": 60}})
+    
     return config
 
 @app.on_message(filters.command("start"))
@@ -50,18 +52,17 @@ async def start_handler(client, message):
 @app.on_callback_query(filters.regex("^settings$"))
 async def settings_callback(client, callback_query):
     config = await get_config()
-    text = f"⚙️ **Settings**\n\n**Update Interval:** `{config['update_interval']}s`\n**Ping Timeout:** `{config['timeout']}s`"
+    text = f"⚙️ **Settings**\n\n**Update & Ping Interval:** `{config['update_interval']}s`"
     buttons = [
-        [InlineKeyboardButton("⏱️ Change Update Interval", callback_data="set_interval")],
-        [InlineKeyboardButton("⏲️ Change Ping Timeout", callback_data="set_timeout")],
+        [InlineKeyboardButton("⏱️ Change Interval", callback_data="set_interval")],
         [InlineKeyboardButton("🔙 Back", callback_data="back_start")]
     ]
     await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(buttons))
 
-@app.on_callback_query(filters.regex("^set_timeout$"))
-async def set_timeout_callback(client, callback_query):
-    user_data[callback_query.from_user.id] = {"action": "setting_timeout"}
-    await callback_query.edit_message_text("Please send the new ping timeout in seconds (e.g., 5):")
+@app.on_callback_query(filters.regex("^set_interval$"))
+async def set_interval_callback(client, callback_query):
+    user_data[callback_query.from_user.id] = {"action": "setting_interval"}
+    await callback_query.edit_message_text("Please send the new interval in seconds (e.g., 60):")
 
 @app.on_callback_query(filters.regex("^manage_bots$"))
 async def manage_bots_callback(client, callback_query):
@@ -169,24 +170,12 @@ async def handle_text(client, message):
     elif action == "setting_interval":
         try:
             val = int(message.text)
-            if val < 60 or val > 1800:
-                await message.reply("Update interval must be between 60 seconds (1 min) and 1800 seconds (30 min).")
+            if val < 30 or val > 1800:
+                await message.reply("Interval must be between 30 seconds and 1800 seconds (30 min).")
                 return
             await config_col.update_one({"_id": "settings"}, {"$set": {"update_interval": val}}, upsert=True)
             del user_data[user_id]
-            await message.reply(f"Update interval set to {val}s!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="settings")]]))
-        except ValueError:
-            await message.reply("Please send a valid number.")
-
-    elif action == "setting_timeout":
-        try:
-            val = int(message.text)
-            if val < 30 or val > 600:
-                await message.reply("Ping timeout must be between 30 seconds and 600 seconds (10 min).")
-                return
-            await config_col.update_one({"_id": "settings"}, {"$set": {"timeout": val}}, upsert=True)
-            del user_data[user_id]
-            await message.reply(f"Ping timeout set to {val}s!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="settings")]]))
+            await message.reply(f"Interval set to {val}s!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="settings")]]))
         except ValueError:
             await message.reply("Please send a valid number.")
 
