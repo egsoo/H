@@ -1,0 +1,9 @@
+aiohttp
+pyrogram
+tgcrypto
+aiohttp
+pyrogram
+tgcrypto
+aiohttp-healthcheck
+dnspython
+motor

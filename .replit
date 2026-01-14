@@ -1,0 +1,48 @@
+modules = ["python-3.12"]
+[agent]
+expertMode = true
+
+[nix]
+channel = "stable-25_05"
+packages = ["cacert"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Telegram Bot"
+
+[[workflows.workflow]]
+name = "Telegram Bot"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python bot.py"
+
+[deployment]
+deploymentTarget = "vm"
+run = ["python", "bot.py"]
+
+[userenv]
+
+[userenv.shared]
+API_ID = "21702672"
+API_HASH = "9ef8c573a89dc23477b8709741e6b520"
+BOT_TOKEN = "8300771289:AAEp_jOMTDna3fyHummJVhrm0YqV8OMtPe8"
+CHANNEL_ID = "-1003560361279"
+MESSAGE_ID = "3387"
+MONGO_URL = "mongodb+srv://jit69jy8:y0bmWsdUnPLh1Csa@cluster0.f55v7zw.mongodb.net/?appName=Cluster0"
+
+[[ports]]
+localPort = 8080
+externalPort = 80
