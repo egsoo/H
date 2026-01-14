@@ -12,8 +12,8 @@ API_HASH = os.environ.get("API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 MONGO_URL = os.environ.get("MONGO_URL")
 
-CHANNEL_ID = -1003560361279
-MESSAGE_ID = 387
+CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1003560361279"))
+MESSAGE_ID = int(os.environ.get("MESSAGE_ID", "387"))
 
 # Database Setup
 db_client = AsyncIOMotorClient(MONGO_URL)
