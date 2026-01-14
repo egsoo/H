@@ -206,7 +206,9 @@ async def updater():
         while True:
             config = await get_config()
             interval = config.get("update_interval", 60)
-            timeout = config.get("timeout", 10)
+            
+            # Use the same value for timeout as the update interval to sync them
+            timeout = interval
             
             bots = await bots_col.find().to_list(length=100)
             if not bots:
