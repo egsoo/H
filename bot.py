@@ -41,15 +41,25 @@ async def get_config():
     
     return config
 
+def get_main_menu():
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("➕ Add URL", callback_data="add_bot"),
+            InlineKeyboardButton("🤖 Manage URLs", callback_data="manage_bots")
+        ],
+        [
+            InlineKeyboardButton("⚙️ Settings", callback_data="settings"),
+            InlineKeyboardButton("♻️ Refresh Channel", callback_data="refresh_now")
+        ]
+    ])
+
 @app.on_message(filters.command("start"))
 async def start_handler(client, message):
-    buttons = [
-        [InlineKeyboardButton("➕ Add URL", callback_data="add_bot")],
-        [InlineKeyboardButton("🤖 Manage URLs", callback_data="manage_bots")],
-        [InlineKeyboardButton("⚙️ Settings", callback_data="settings")],
-        [InlineKeyboardButton("♻️ Refresh Channel", callback_data="refresh_now")]
-    ]
-    await message.reply_text("Welcome! Manage your monitoring URLs here:", reply_markup=InlineKeyboardMarkup(buttons))
+    await message.reply_text("Welcome! Manage your monitoring URLs here:", reply_markup=get_main_menu())
+
+@app.on_callback_query(filters.regex("^back_start$"))
+async def back_start_callback(client, callback_query):
+    await callback_query.edit_message_text("Welcome! Manage your monitoring URLs here:", reply_markup=get_main_menu())
 
 async def check_service_simple(session, url, timeout):
     try:
@@ -57,8 +67,6 @@ async def check_service_simple(session, url, timeout):
             return r.status == 200
     except:
         return False
-
-@app.on_callback_query(filters.regex("^settings$"))
 async def settings_callback(client, callback_query):
     config = await get_config()
     text = f"⚙️ **Settings**\n\n**Update & Ping Interval:** `{config['update_interval']}s`"
@@ -147,12 +155,7 @@ async def delete_bot_callback(client, callback_query):
 
 @app.on_callback_query(filters.regex("^back_start$"))
 async def back_start_callback(client, callback_query):
-    buttons = [
-        [InlineKeyboardButton("➕ Add URL", callback_data="add_bot")],
-        [InlineKeyboardButton("🤖 Manage URLs", callback_data="manage_bots")],
-        [InlineKeyboardButton("⚙️ Settings", callback_data="settings")]
-    ]
-    await callback_query.edit_message_text("Welcome! Manage your monitoring URLs here:", reply_markup=InlineKeyboardMarkup(buttons))
+    await callback_query.edit_message_text("Welcome! Manage your monitoring URLs here:", reply_markup=get_main_menu())
 
 @app.on_callback_query(filters.regex("^refresh_now$"))
 async def refresh_now_callback(client, callback_query):
