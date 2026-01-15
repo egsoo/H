@@ -157,7 +157,8 @@ async def back_start_callback(client, callback_query):
 @app.on_callback_query(filters.regex("^refresh_now$"))
 async def refresh_now_callback(client, callback_query):
     await callback_query.answer("this is Health check massage !!", show_alert=True)
-    asyncio.create_task(run_manual_update())
+    if callback_query.message.chat.type == enums.ChatType.PRIVATE:
+        asyncio.create_task(run_manual_update())
 
 async def run_manual_update():
     async with aiohttp.ClientSession() as session:
