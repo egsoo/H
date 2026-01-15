@@ -184,16 +184,13 @@ async def run_manual_update():
         bots = await bots_col.find().to_list(length=100)
         
         if not bots:
-            text = "<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\nNo URLs configured.\n\n━━━━━━━━━━━━━━━━━━━</blockquote>"
+            text = "<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\nNo URLs configured.</blockquote>"
         else:
             tasks = [check_service(session, b["name"], b["url"], timeout) for b in bots]
             results = await asyncio.gather(*tasks)
             content = "\n\n".join(results)
-            text = f"<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\n{content}\n\n━━━━━━━━━━━━━━━━━━━</blockquote>"
+            text = f"<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\n{content}</blockquote>"
         
-        ist = timezone(timedelta(hours=5, minutes=30))
-        now_ist = datetime.now(ist).strftime('%H:%M:%S')
-        text += f"\n\n_Last update: {now_ist}_"
         try:
             await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, parse_mode=enums.ParseMode.HTML)
         except Exception as e:
@@ -267,16 +264,13 @@ async def updater():
             
             bots = await bots_col.find().to_list(length=100)
             if not bots:
-                text = "<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\nNo URLs configured.\n\n━━━━━━━━━━━━━━━━━━━</blockquote>"
+                text = "<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\nNo URLs configured.</blockquote>"
             else:
                 tasks = [check_service(session, b["name"], b["url"], timeout) for b in bots]
                 results = await asyncio.gather(*tasks)
                 content = "\n\n".join(results)
-                text = f"<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\n{content}\n\n━━━━━━━━━━━━━━━━━━━</blockquote>"
+                text = f"<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\n{content}</blockquote>"
             
-            ist = timezone(timedelta(hours=5, minutes=30))
-            now_ist = datetime.now(ist).strftime('%H:%M:%S')
-            text += f"\n\n_Last update: {now_ist}_"
             try:
                 await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, parse_mode=enums.ParseMode.HTML)
             except Exception as e:
