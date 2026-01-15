@@ -180,9 +180,8 @@ async def run_manual_update():
             text = f"<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\n{content}\n\n━━━━━━━━━━━━━━━━━━━</blockquote>"
         
         text += f"\n\n_Last update: {time.strftime('%H:%M:%S')}_"
-        buttons = [[InlineKeyboardButton("♻️ Refresh", callback_data="refresh_now")]]
         try:
-            await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, reply_markup=InlineKeyboardMarkup(buttons), parse_mode=enums.ParseMode.HTML)
+            await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, parse_mode=enums.ParseMode.HTML)
         except Exception as e:
             print("Manual update failed:", e)
 
@@ -260,9 +259,8 @@ async def updater():
                 text = f"<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\n{content}\n\n━━━━━━━━━━━━━━━━━━━</blockquote>"
             
             text += f"\n\n_Last update: {time.strftime('%H:%M:%S')}_"
-            buttons = [[InlineKeyboardButton("♻️ Refresh", callback_data="refresh_now")]]
             try:
-                await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, reply_markup=InlineKeyboardMarkup(buttons), parse_mode=enums.ParseMode.HTML)
+                await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, parse_mode=enums.ParseMode.HTML)
             except Exception as e:
                 print("Update failed:", e)
             
