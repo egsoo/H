@@ -2,7 +2,7 @@ import asyncio
 import time
 import os
 import aiohttp
-from pyrogram import Client, idle, filters
+from pyrogram import Client, idle, filters, enums
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from aiohttp import web
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -164,20 +164,17 @@ async def run_manual_update():
         bots = await bots_col.find().to_list(length=100)
         
         if not bots:
-            text = "> ❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n>\n> No URLs configured.\n>\n> ━━━━━━━━━━━━━━━━━━━\n"
+            text = "<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\nNo URLs configured.\n\n━━━━━━━━━━━━━━━━━━━</blockquote>"
         else:
             tasks = [check_service(session, b["name"], b["url"], timeout) for b in bots]
             results = await asyncio.gather(*tasks)
-            text = "> ❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n>\n"
-            for res in results:
-                quoted_res = "\n".join([f"> {line}" for line in res.split("\n")])
-                text += f"{quoted_res}\n>\n"
-            text += "> ━━━━━━━━━━━━━━━━━━━\n"
+            content = "\n\n".join(results)
+            text = f"<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\n{content}\n\n━━━━━━━━━━━━━━━━━━━</blockquote>"
         
-        text += f"\n_Last update: {time.strftime('%H:%M:%S')}_"
+        text += f"\n\n_Last update: {time.strftime('%H:%M:%S')}_"
         buttons = [[InlineKeyboardButton("♻️ Refresh", callback_data="refresh_now")]]
         try:
-            await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, reply_markup=InlineKeyboardMarkup(buttons))
+            await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, reply_markup=InlineKeyboardMarkup(buttons), parse_mode=enums.ParseMode.HTML)
         except Exception as e:
             print("Manual update failed:", e)
 
@@ -247,21 +244,17 @@ async def updater():
             
             bots = await bots_col.find().to_list(length=100)
             if not bots:
-                text = "> ❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n>\n> No URLs configured.\n>\n> ━━━━━━━━━━━━━━━━━━━\n"
+                text = "<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\nNo URLs configured.\n\n━━━━━━━━━━━━━━━━━━━</blockquote>"
             else:
                 tasks = [check_service(session, b["name"], b["url"], timeout) for b in bots]
                 results = await asyncio.gather(*tasks)
-                
-                text = "> ❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n>\n"
-                for res in results:
-                    quoted_res = "\n".join([f"> {line}" for line in res.split("\n")])
-                    text += f"{quoted_res}\n>\n"
-                text += "> ━━━━━━━━━━━━━━━━━━━\n"
+                content = "\n\n".join(results)
+                text = f"<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\n{content}\n\n━━━━━━━━━━━━━━━━━━━</blockquote>"
             
-            text += f"\n_Last update: {time.strftime('%H:%M:%S')}_"
+            text += f"\n\n_Last update: {time.strftime('%H:%M:%S')}_"
             buttons = [[InlineKeyboardButton("♻️ Refresh", callback_data="refresh_now")]]
             try:
-                await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, reply_markup=InlineKeyboardMarkup(buttons))
+                await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, reply_markup=InlineKeyboardMarkup(buttons), parse_mode=enums.ParseMode.HTML)
             except Exception as e:
                 print("Update failed:", e)
             
