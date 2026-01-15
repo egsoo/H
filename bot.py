@@ -166,7 +166,7 @@ async def bot_info_callback(client, callback_query):
 
     text = f"**URL Name:** `{bot['name']}`\n**URL:** `{bot['url']}`"
     is_maintenance = bot.get("maintenance", False)
-    m_status = "ON 🛠️" if is_maintenance else "OFF ✅"
+    m_status = "ON 🟡" if is_maintenance else "OFF ✅"
     buttons = [
         [
             InlineKeyboardButton("📝 Name", callback_data=f"edit_name_{bot_id}"),
@@ -319,7 +319,7 @@ async def handle_text(client, message):
 
 async def check_service(session, name, url, timeout, maintenance=False):
     if maintenance:
-        return f"╭⎋ {name}  \n╰⊚ ᴍᴧɪɴᴛᴇɴᴧɴᴄᴇ 🛠️"
+        return f"╭⎋ {name}  \n╰⊚ ᴍᴧɪɴᴛᴇɴᴧɴᴄᴇ 🟡"
     start_time = time.time()
     try:
         async with session.get(url, timeout=timeout) as r:
@@ -397,7 +397,7 @@ async def health_check(request):
         for bot in bots:
             if bot.get("maintenance", False):
                 status_class = "maint"
-                status_text = "Maintenance 🛠️"
+                status_text = "Maintenance 🟡"
                 status_label = "status-maint"
             else:
                 is_alive = await check_service_simple(session, bot["url"], timeout)
@@ -411,7 +411,6 @@ async def health_check(request):
                     <span class="name">{bot['name']}</span>
                     <span class="status {status_label}">{status_text}</span>
                 </div>
-                <div class="url">{bot['url']}</div>
             </div>
             """
     
