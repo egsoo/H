@@ -193,7 +193,7 @@ async def run_manual_update():
         
         ist = timezone(timedelta(hours=5, minutes=30))
         now_ist = datetime.now(ist).strftime('%H:%M:%S')
-        text += f"\n\n_Last update: {now_ist}_"
+        text += f"\n\nLast update: {now_ist}"
         try:
             await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, parse_mode=enums.ParseMode.HTML)
         except Exception as e:
@@ -276,7 +276,7 @@ async def updater():
             
             ist = timezone(timedelta(hours=5, minutes=30))
             now_ist = datetime.now(ist).strftime('%H:%M:%S')
-            text += f"\n\n_Last update: {now_ist}_"
+            text += f"\n\nLast update: {now_ist}"
             try:
                 await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, parse_mode=enums.ParseMode.HTML)
             except Exception as e:
