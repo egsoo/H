@@ -17,12 +17,11 @@ ADMIN_ID = int(os.environ.get("ADMIN_ID", "0"))
 CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1003560361279"))
 MESSAGE_ID = int(os.environ.get("MESSAGE_ID", "387"))
 
-UPDATE_INTERVAL = int(os.environ.get("UPDATE_INTERVAL", "60"))
-
 # Database Setup
 db_client = AsyncIOMotorClient(MONGO_URL)
 db = db_client["monitor_bot"]
 bots_col = db["bots"]
+config_col = db["config"]
 
 app = Client("monitor", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
@@ -82,19 +81,19 @@ async def check_service_simple(session, url, timeout):
 
 @app.on_callback_query(filters.regex("^settings$"))
 async def settings_callback(client, callback_query):
-    text = f"⚙️ **Settings**\n\n**Update & Ping Interval:** `{UPDATE_INTERVAL}s` (Set via Environment Variable)"
+    config = await get_config()
+    text = f"⚙️ **Settings**\n\n**Update & Ping Interval:** `{config['update_interval']}s`"
     buttons = [
+        [InlineKeyboardButton("⏱️ Change Interval", callback_data="set_interval")],
         [InlineKeyboardButton("🔙 Back", callback_data="back_start")]
     ]
     await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(buttons))
 
 @app.on_callback_query(filters.regex("^set_interval$"))
 async def set_interval_callback(client, callback_query):
-    await callback_query.answer("Update interval must be changed in Environment Variables!", show_alert=True)
-
-@app.on_callback_query(filters.regex("^setting_interval$"))
-async def setting_interval_callback(client, callback_query):
-    await callback_query.answer("Update interval must be changed in Environment Variables!", show_alert=True)
+    user_data[callback_query.from_user.id] = {"action": "setting_interval"}
+    buttons = [[InlineKeyboardButton("🔙 Cancel", callback_data="settings")]]
+    await callback_query.edit_message_text("Please send the new interval in seconds (e.g., 60):", reply_markup=InlineKeyboardMarkup(buttons))
 
 @app.on_callback_query(filters.regex("^manage_bots$"))
 async def manage_bots_callback(client, callback_query):
@@ -103,7 +102,8 @@ async def manage_bots_callback(client, callback_query):
         await callback_query.answer("No URLs found!", show_alert=True)
         return
     
-    timeout = UPDATE_INTERVAL
+    config = await get_config()
+    timeout = config.get("update_interval", 10)
     
     text = "**Select a URL to manage:**\n\n"
     buttons = []
@@ -178,7 +178,8 @@ async def refresh_now_callback(client, callback_query):
 
 async def run_manual_update():
     async with aiohttp.ClientSession() as session:
-        timeout = UPDATE_INTERVAL
+        config = await get_config()
+        timeout = config.get("update_interval", 60)
         bots = await bots_col.find().to_list(length=100)
         
         if not bots:
@@ -232,8 +233,16 @@ async def handle_text(client, message):
         await message.reply("URL updated successfully!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="manage_bots")]]))
 
     elif action == "setting_interval":
-        await message.reply("Update interval must be changed in Environment Variables!")
-        del user_data[user_id]
+        try:
+            val = int(message.text)
+            if val < 30 or val > 1800:
+                await message.reply("Interval must be between 30 seconds and 1800 seconds (30 min).")
+                return
+            await config_col.update_one({"_id": "settings"}, {"$set": {"update_interval": val}}, upsert=True)
+            del user_data[user_id]
+            await message.reply(f"Interval set to {val}s!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="settings")]]))
+        except ValueError:
+            await message.reply("Please send a valid number.")
 
 async def check_service(session, name, url, timeout):
     start_time = time.time()
@@ -249,7 +258,8 @@ async def check_service(session, name, url, timeout):
 async def updater():
     async with aiohttp.ClientSession() as session:
         while True:
-            interval = UPDATE_INTERVAL
+            config = await get_config()
+            interval = config.get("update_interval", 60)
             timeout = interval
             
             bots = await bots_col.find().to_list(length=100)
