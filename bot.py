@@ -46,7 +46,8 @@ async def start_handler(client, message):
     buttons = [
         [InlineKeyboardButton("➕ Add URL", callback_data="add_bot")],
         [InlineKeyboardButton("🤖 Manage URLs", callback_data="manage_bots")],
-        [InlineKeyboardButton("⚙️ Settings", callback_data="settings")]
+        [InlineKeyboardButton("⚙️ Settings", callback_data="settings")],
+        [InlineKeyboardButton("♻️ Refresh Channel", callback_data="refresh_now")]
     ]
     await message.reply_text("Welcome! Manage your monitoring URLs here:", reply_markup=InlineKeyboardMarkup(buttons))
 
@@ -155,7 +156,7 @@ async def back_start_callback(client, callback_query):
 
 @app.on_callback_query(filters.regex("^refresh_now$"))
 async def refresh_now_callback(client, callback_query):
-    await callback_query.answer("All URL got checked !!", show_alert=True)
+    await callback_query.answer("this is Health check massage !!", show_alert=True)
     asyncio.create_task(run_manual_update())
 
 async def run_manual_update():
