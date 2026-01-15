@@ -67,6 +67,8 @@ async def check_service_simple(session, url, timeout):
             return r.status == 200
     except:
         return False
+
+@app.on_callback_query(filters.regex("^settings$"))
 async def settings_callback(client, callback_query):
     config = await get_config()
     text = f"⚙️ **Settings**\n\n**Update & Ping Interval:** `{config['update_interval']}s`"
