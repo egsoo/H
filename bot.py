@@ -3,6 +3,7 @@ import time
 import os
 import aiohttp
 from pyrogram import Client, idle, filters, enums
+import pyrogram
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from aiohttp import web
 from motor.motor_asyncio import AsyncIOMotorClient

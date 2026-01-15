@@ -1,8 +1,6 @@
 aiohttp
-pyrogram
 tgcrypto
 aiohttp
-pyrogram
 tgcrypto
 aiohttp-healthcheck
 dnspython
@@ -11,5 +9,5 @@ aiohttp
 aiohttp-healthcheck
 dnspython
 motor
-pyrogram
 tgcrypto
+pyrofork
