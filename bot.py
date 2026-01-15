@@ -191,6 +191,9 @@ async def run_manual_update():
             content = "\n\n".join(results)
             text = f"<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\n{content}</blockquote>"
         
+        ist = timezone(timedelta(hours=5, minutes=30))
+        now_ist = datetime.now(ist).strftime('%H:%M:%S')
+        text += f"\n\n_Last update: {now_ist}_"
         try:
             await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, parse_mode=enums.ParseMode.HTML)
         except Exception as e:
@@ -271,6 +274,9 @@ async def updater():
                 content = "\n\n".join(results)
                 text = f"<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\n{content}</blockquote>"
             
+            ist = timezone(timedelta(hours=5, minutes=30))
+            now_ist = datetime.now(ist).strftime('%H:%M:%S')
+            text += f"\n\n_Last update: {now_ist}_"
             try:
                 await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, parse_mode=enums.ParseMode.HTML)
             except Exception as e:
