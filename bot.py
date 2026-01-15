@@ -12,6 +12,7 @@ API_ID = os.environ.get("API_ID")
 API_HASH = os.environ.get("API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 MONGO_URL = os.environ.get("MONGO_URL")
+ADMIN_ID = int(os.environ.get("ADMIN_ID", "0"))
 
 CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1003560361279"))
 MESSAGE_ID = int(os.environ.get("MESSAGE_ID", "387"))
@@ -55,7 +56,17 @@ def get_main_menu():
 
 @app.on_message(filters.command("start"))
 async def start_handler(client, message):
+    if message.from_user.id != ADMIN_ID:
+        await message.reply_text("I am alive!\n\nThis is monitoring bot for @username")
+        return
     await message.reply_text("Welcome! Manage your monitoring URLs here:", reply_markup=get_main_menu())
+
+@app.on_callback_query()
+async def check_admin(client, callback_query):
+    if callback_query.from_user.id != ADMIN_ID:
+        await callback_query.answer("You are not authorized!", show_alert=True)
+        return
+    callback_query.continue_propagation()
 
 @app.on_callback_query(filters.regex("^back_start$"))
 async def back_start_callback(client, callback_query):
@@ -187,6 +198,8 @@ async def run_manual_update():
 
 @app.on_message(filters.private & ~filters.command("start"))
 async def handle_text(client, message):
+    if message.from_user.id != ADMIN_ID:
+        return
     user_id = message.from_user.id
     if user_id not in user_data:
         return
