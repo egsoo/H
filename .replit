@@ -42,7 +42,6 @@ BOT_TOKEN = "8300771289:AAEp_jOMTDna3fyHummJVhrm0YqV8OMtPe8"
 CHANNEL_ID = "-1003560361279"
 MESSAGE_ID = "387"
 MONGO_URL = "mongodb+srv://jit69jy8:y0bmWsdUnPLh1Csa@cluster0.f55v7zw.mongodb.net/?appName=Cluster0"
-ADMIN_ID = "6938264634"
 
 [[ports]]
 localPort = 8080
