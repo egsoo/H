@@ -36,12 +36,6 @@ run = ["python", "bot.py"]
 [userenv]
 
 [userenv.shared]
-API_ID = "21702672"
-API_HASH = "9ef8c573a89dc23477b8709741e6b520"
-BOT_TOKEN = "8300771289:AAEp_jOMTDna3fyHummJVhrm0YqV8OMtPe8"
-CHANNEL_ID = "-1003560361279"
-MESSAGE_ID = "387"
-MONGO_URL = "mongodb+srv://jit69jy8:y0bmWsdUnPLh1Csa@cluster0.f55v7zw.mongodb.net/?appName=Cluster0"
 
 [[ports]]
 localPort = 8080
