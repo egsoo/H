@@ -165,15 +165,29 @@ async def bot_info_callback(client, callback_query):
         return
 
     text = f"**URL Name:** `{bot['name']}`\n**URL:** `{bot['url']}`"
+    is_maintenance = bot.get("maintenance", False)
+    m_status = "ON 🛠️" if is_maintenance else "OFF ✅"
     buttons = [
         [
             InlineKeyboardButton("📝 Name", callback_data=f"edit_name_{bot_id}"),
             InlineKeyboardButton("🔗 URL", callback_data=f"edit_url_{bot_id}")
         ],
+        [InlineKeyboardButton(f"🛠️ Maintenance: {m_status}", callback_data=f"toggle_maint_{bot_id}")],
         [InlineKeyboardButton("🗑️ Delete", callback_data=f"delete_{bot_id}")],
         [InlineKeyboardButton("🔙 Back", callback_data="manage_bots")]
     ]
     await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+
+@app.on_callback_query(filters.regex("^toggle_maint_"))
+async def toggle_maint_callback(client, callback_query):
+    bot_id = callback_query.data.split("_")[2]
+    from bson import ObjectId
+    bot = await bots_col.find_one({"_id": ObjectId(bot_id)})
+    if bot:
+        new_state = not bot.get("maintenance", False)
+        await bots_col.update_one({"_id": ObjectId(bot_id)}, {"$set": {"maintenance": new_state}})
+        await callback_query.answer(f"Maintenance mode: {'ON' if new_state else 'OFF'}")
+        await bot_info_callback(client, callback_query)
 
 @app.on_callback_query(filters.regex("^add_bot$"))
 async def add_bot_callback(client, callback_query):
@@ -224,7 +238,7 @@ async def run_manual_update():
         if not bots:
             text = "<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\nNo URLs configured.</blockquote>"
         else:
-            tasks = [check_service(session, b["name"], b["url"], timeout) for b in bots]
+            tasks = [check_service(session, b["name"], b["url"], timeout, b.get("maintenance", False)) for b in bots]
             results = await asyncio.gather(*tasks)
             content = "\n\n".join(results)
             text = f"<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\n{content}</blockquote>"
@@ -303,7 +317,9 @@ async def handle_text(client, message):
         except ValueError:
             await message.reply("Please send a valid number.")
 
-async def check_service(session, name, url, timeout):
+async def check_service(session, name, url, timeout, maintenance=False):
+    if maintenance:
+        return f"╭⎋ {name}  \n╰⊚ ᴍᴧɪɴᴛᴇɴᴧɴᴄᴇ 🛠️"
     start_time = time.time()
     try:
         async with session.get(url, timeout=timeout) as r:
@@ -327,7 +343,7 @@ async def updater():
             if not bots:
                 text = "<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\nNo URLs configured.</blockquote>"
             else:
-                tasks = [check_service(session, b["name"], b["url"], timeout) for b in bots]
+                tasks = [check_service(session, b["name"], b["url"], timeout, b.get("maintenance", False)) for b in bots]
                 results = await asyncio.gather(*tasks)
                 content = "\n\n".join(results)
                 text = f"<blockquote>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs:\n\n{content}</blockquote>"
@@ -344,7 +360,73 @@ async def updater():
             await asyncio.sleep(interval)
 
 async def health_check(request):
-    return web.Response(text="OK", status=200)
+    bots = await bots_col.find().to_list(length=100)
+    config = await get_config()
+    timeout = config.get("update_interval", 60)
+    
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Service Status Page</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #0f172a; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+            .container { width: 100%; max-width: 600px; }
+            h1 { color: #38bdf8; text-align: center; }
+            .service-card { background: #1e293b; padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 5px solid #64748b; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+            .alive { border-left-color: #22c55e; }
+            .dead { border-left-color: #ef4444; }
+            .maint { border-left-color: #f59e0b; }
+            .header { display: flex; justify-content: space-between; align-items: center; }
+            .name { font-weight: bold; font-size: 1.1em; }
+            .status { font-size: 0.9em; padding: 4px 8px; border-radius: 6px; text-transform: uppercase; }
+            .status-alive { background: #14532d; color: #4ade80; }
+            .status-dead { background: #450a0a; color: #f87171; }
+            .status-maint { background: #451a03; color: #fbbf24; }
+            .url { color: #94a3b8; font-size: 0.85em; margin-top: 5px; word-break: break-all; }
+            .footer { margin-top: 20px; font-size: 0.8em; color: #64748b; text-align: center; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>❤️ᴏғғɪᴄɪᴧʟ ʙσᴛs Status</h1>
+    """
+    
+    async with aiohttp.ClientSession() as session:
+        for bot in bots:
+            if bot.get("maintenance", False):
+                status_class = "maint"
+                status_text = "Maintenance 🛠️"
+                status_label = "status-maint"
+            else:
+                is_alive = await check_service_simple(session, bot["url"], timeout)
+                status_class = "alive" if is_alive else "dead"
+                status_text = "Alive 🟢" if is_alive else "Down 🔴"
+                status_label = "status-alive" if is_alive else "status-dead"
+            
+            html += f"""
+            <div class="service-card {status_class}">
+                <div class="header">
+                    <span class="name">{bot['name']}</span>
+                    <span class="status {status_label}">{status_text}</span>
+                </div>
+                <div class="url">{bot['url']}</div>
+            </div>
+            """
+    
+    ist = timezone(timedelta(hours=5, minutes=30))
+    now_ist = datetime.now(ist).strftime('%Y-%m-%d %H:%M:%S')
+    html += f"""
+            <div class="footer">
+                Last update: {now_ist} IST<br>
+                Monitoring bot for @username
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return web.Response(text=html, content_type='text/html')
 
 async def main():
     server = web.Application()
