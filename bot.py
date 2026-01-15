@@ -32,14 +32,29 @@ user_data = {}
 async def get_config():
     config = await config_col.find_one({"_id": "settings"})
     if not config:
-        # Default settings: interval 60s
-        config = {"_id": "settings", "update_interval": 60}
+        # Default settings
+        config = {
+            "_id": "settings", 
+            "update_interval": 60,
+            "channel_id": int(os.environ.get("CHANNEL_ID", "0")),
+            "message_id": int(os.environ.get("MESSAGE_ID", "0"))
+        }
         await config_col.insert_one(config)
     
-    # Ensure update_interval exists
+    # Ensure all fields exist
+    updated = False
     if "update_interval" not in config:
         config["update_interval"] = 60
-        await config_col.update_one({"_id": "settings"}, {"$set": {"update_interval": 60}})
+        updated = True
+    if "channel_id" not in config:
+        config["channel_id"] = int(os.environ.get("CHANNEL_ID", "0"))
+        updated = True
+    if "message_id" not in config:
+        config["message_id"] = int(os.environ.get("MESSAGE_ID", "0"))
+        updated = True
+    
+    if updated:
+        await config_col.replace_one({"_id": "settings"}, config)
     
     return config
 
@@ -83,12 +98,33 @@ async def check_service_simple(session, url, timeout):
 @app.on_callback_query(filters.regex("^settings$"))
 async def settings_callback(client, callback_query):
     config = await get_config()
-    text = f"⚙️ **Settings**\n\n**Update & Ping Interval:** `{config['update_interval']}s`"
+    text = (
+        "⚙️ **Settings**\n\n"
+        f"**Update Interval:** `{config['update_interval']}s`\n"
+        f"**Channel ID:** `{config['channel_id']}`\n"
+        f"**Message ID:** `{config['message_id']}`"
+    )
     buttons = [
         [InlineKeyboardButton("⏱️ Change Interval", callback_data="set_interval")],
+        [
+            InlineKeyboardButton("📢 Channel ID", callback_data="set_channel"),
+            InlineKeyboardButton("💬 Message ID", callback_data="set_message")
+        ],
         [InlineKeyboardButton("🔙 Back", callback_data="back_start")]
     ]
     await callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(buttons))
+
+@app.on_callback_query(filters.regex("^set_channel$"))
+async def set_channel_callback(client, callback_query):
+    user_data[callback_query.from_user.id] = {"action": "setting_channel"}
+    buttons = [[InlineKeyboardButton("🔙 Cancel", callback_data="settings")]]
+    await callback_query.edit_message_text("Please send the new Channel ID (e.g., -100123456789):", reply_markup=InlineKeyboardMarkup(buttons))
+
+@app.on_callback_query(filters.regex("^set_message$"))
+async def set_message_callback(client, callback_query):
+    user_data[callback_query.from_user.id] = {"action": "setting_message"}
+    buttons = [[InlineKeyboardButton("🔙 Cancel", callback_data="settings")]]
+    await callback_query.edit_message_text("Please send the new Message ID (e.g., 123):", reply_markup=InlineKeyboardMarkup(buttons))
 
 @app.on_callback_query(filters.regex("^set_interval$"))
 async def set_interval_callback(client, callback_query):
@@ -181,6 +217,8 @@ async def run_manual_update():
     async with aiohttp.ClientSession() as session:
         config = await get_config()
         timeout = config.get("update_interval", 60)
+        channel_id = config.get("channel_id")
+        message_id = config.get("message_id")
         bots = await bots_col.find().to_list(length=100)
         
         if not bots:
@@ -195,7 +233,7 @@ async def run_manual_update():
         now_ist = datetime.now(ist).strftime('%H:%M:%S')
         text += f"\n\nLast update: {now_ist}"
         try:
-            await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, parse_mode=enums.ParseMode.HTML)
+            await app.edit_message_text(channel_id, message_id, text, parse_mode=enums.ParseMode.HTML)
         except Exception as e:
             print("Manual update failed:", e)
 
@@ -247,6 +285,24 @@ async def handle_text(client, message):
         except ValueError:
             await message.reply("Please send a valid number.")
 
+    elif action == "setting_channel":
+        try:
+            val = int(message.text)
+            await config_col.update_one({"_id": "settings"}, {"$set": {"channel_id": val}}, upsert=True)
+            del user_data[user_id]
+            await message.reply(f"Channel ID updated to `{val}`!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="settings")]]))
+        except ValueError:
+            await message.reply("Please send a valid number.")
+
+    elif action == "setting_message":
+        try:
+            val = int(message.text)
+            await config_col.update_one({"_id": "settings"}, {"$set": {"message_id": val}}, upsert=True)
+            del user_data[user_id]
+            await message.reply(f"Message ID updated to `{val}`!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="settings")]]))
+        except ValueError:
+            await message.reply("Please send a valid number.")
+
 async def check_service(session, name, url, timeout):
     start_time = time.time()
     try:
@@ -263,6 +319,8 @@ async def updater():
         while True:
             config = await get_config()
             interval = config.get("update_interval", 60)
+            channel_id = config.get("channel_id")
+            message_id = config.get("message_id")
             timeout = interval
             
             bots = await bots_col.find().to_list(length=100)
@@ -278,7 +336,8 @@ async def updater():
             now_ist = datetime.now(ist).strftime('%H:%M:%S')
             text += f"\n\nLast update: {now_ist}"
             try:
-                await app.edit_message_text(CHANNEL_ID, MESSAGE_ID, text, parse_mode=enums.ParseMode.HTML)
+                if channel_id and message_id:
+                    await app.edit_message_text(channel_id, message_id, text, parse_mode=enums.ParseMode.HTML)
             except Exception as e:
                 print("Update failed:", e)
             
